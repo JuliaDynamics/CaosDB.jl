@@ -1,10 +1,14 @@
+#!/bin/env julia
+# Draft of the julia library for CaosDB
+# A. Schlemmer, 04/2019
+
 module CaosDB
 
 # using EzXML
-# using HTTP # TODO: do detailled imports
+# using HTTP
+
 import HTTP.URIs: escapeuri
-
-
+import EzXML: ElementNode, TextNode, XMLDocument, link!
 
 # Type for managing the connection
 # --------------------------------
@@ -26,22 +30,25 @@ struct Text <: Datatype end
 struct Datetime <: Datatype end
 struct Date <: Datatype end
 struct Boolean <: Datatype end
+struct Reference <: Datatype end
 
 abstract type Role end
-struct RecordType <: Role end
-struct Record <: Role end
+abstract type RecordTypeOrRecord <: Role end
+struct RecordType <: RecordTypeOrRecord end
+struct Record <: RecordTypeOrRecord end
 struct Property <: Role end
 struct File <: Role end
 
 mutable struct Entity{R<:Role}
     role::R
-    id::Union{Missing,Integer}
+    id::Union{Missing,Int64}
     name::Union{Missing,String}
     value::Union{Missing,String}
     parents::Array{Entity}
     properties::Array{Entity}
-    datatype::Union{Missing,Datatype,String}
+    datatype::Union{Missing,Datatype,Entity}
     unit::Union{Missing,String}
+    description::Union{Missing,String}
 end
 
 global ID_COUNTER = 0
@@ -67,8 +74,108 @@ RecordType(;id=next_id(), name=missing, parents=[], properties=[])
     = Entity(RecordType; id=id, name=name, parents=parents, properties=properties)
 
 
-function entity_to_xml(entity; document=XMLDocument())
+function isrecord(entity)
+    if (typeof(entity) == Record)
+        return true;
+    end
+    return false
+end
+
+function isproperty(entity)
+    if (typeof(entity) == Property)
+        return true;
+    end
+    return false
+end
+
+function isrecordtype(entity)
+    if (typeof(entity) == RecordType)
+        return true;
+    end
+    return false
+end
+
+function role2str(entity)
+    """
+    Convert a role to a string.
+    Returns either "Record", "RecordType" or "Property".
+    """
+    if (isrecord(entity.role))
+        return "Record"
+    elseif (isrecordtype(entity.role))
+        return "RecordType"
+    elseif (isproperty(entity.role))
+        return "Property"
+    end
+    error("Unknown role")
+end
+
+function sub_to_node(subs::Array{Entity}, name::String, node)
+    """
+    Helper function
+    Checks whether the list subs has length greater 0.
+    Afterwards creates a new node with given name,
+    creates subnodes for each element of subs,
+    finally links the new node to node.
+    """
+    if (length(subs) > 0)
+        parentnode = ElementNode(name)
+        for par in subs
+            subnode = entity_to_xml(par)
+            link!(parentnode, subnode)
+        end
+        link!(node, parentnode)
+    end
+end
+
+# macro addnonmissingattribute(entity, entfield)
+#     s = Symbol(entfield)
+#     quote
+#         if (!ismissing($(entity).$(entfield)))
+#             node[entfield] = $(entity).$(s)
+#         end
+#     end
+# end
+
+function entity_to_xml(entity)
+    """
+    Converts an entity representation to XML.
+    This is needed for passing the XML in the body of the HTTP request to the server.
+    """
     
+    
+    node = ElementNode(role2str(entity))
+    sub_to_node(entity.parents, "Parents", node)
+    sub_to_node(entity.properties, "Properties", node)
+    # @addnonmissingattribute(entity, name)
+    # @addnonmissingattribute(entity, id)
+    # @addnonmissingattribute(entity, unit)
+    if (!ismissing(entity.name))
+            node["name"] = entity.name
+    end
+    if (!ismissing(entity.id))
+            node["id"] = entity.id
+    end
+    if (!ismissing(entity.unit))
+            node["unit"] = entity.unit
+    end
+    if (!ismissing(entity.description))
+            node["description"] = entity.description
+    end
+    if (!ismissing(entity.value))
+        vlnode = TextNode(entity.value)
+        link!(node, vlnode)
+    end
+    if (!ismissing(entity.datatype))
+        # TODO: this is not a good solution yet, because of list types
+        if (typeof(entity.datatype) == Entity)
+            node["datatype"] = entity.datatype.name
+        end
+        # TODO: else convert abstract type to string
+    end
+    
+    
+    return(node)
 end
 
 function xml_to_entity(xml)
@@ -80,10 +187,9 @@ end
 
 
 function passpw(identifier)
-    return unsafe_string(ccall((:pass_pw, "./libcaoslib"), Cstring, (Cstring,), identifier))
+    return unsafe_string(ccall((:pass_pw, joinpath(@__DIR__, "libcaoslib")), Cstring, (Cstring,), identifier))
 end
 
-# joinpath(@__DIR__, "libcaoslib")
 function _base_login(username, password, baseurl, cacert, verbose)
     response = unsafe_string(ccall((:login, "./libcaoslib"), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cuchar),
@@ -100,14 +206,14 @@ end
 # _base_login = @errorchecking(_base_login)
 
 function _base_get(url, cookiestring, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:get, "./libcaoslib"), Cstring,
+    return unsafe_string(ccall((:get, joinpath(@__DIR__, "libcaoslib")), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring,
                                baseurl, cacert, verbose))
 end
 
 function _base_delete(url, cookiestring, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:del, "./libcaoslib"), Cstring,
+    return unsafe_string(ccall((:del, joinpath(@__DIR__, "libcaoslib")), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring,
                                baseurl, cacert, verbose))
@@ -115,14 +221,14 @@ end
 
 
 function _base_put(url, cookiestring, body, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:put, "./libcaoslib"), Cstring,
+    return unsafe_string(ccall((:put, joinpath(@__DIR__, "libcaoslib")), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring, body,
                                baseurl, cacert, verbose))
 end
 
 function _base_post(url, cookiestring, body, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:post, "./libcaoslib"), Cstring,
+    return unsafe_string(ccall((:post, joinpath(@__DIR__, "libcaoslib")), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring, body,
                                baseurl, cacert, verbose))
