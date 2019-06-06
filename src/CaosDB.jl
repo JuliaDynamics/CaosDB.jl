@@ -157,6 +157,8 @@ function passpw(identifier)
     return unsafe_string(ccall((:pass_pw, joinpath(@__DIR__, "libcaoslib")), Cstring, (Cstring,), identifier))
 end
 
+caoslib_path = joinpath(@__DIR__, "libcaoslib")
+
 function _base_login(username, password, baseurl, cacert, verbose)
     response = unsafe_string(ccall((:login, "./libcaoslib"), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cuchar),
@@ -172,15 +174,17 @@ end
 #       using a macro.
 # _base_login = @errorchecking(_base_login)
 
+# why is this not working: joinpath(@__DIR__, "libcaoslib")
+
 function _base_get(url, cookiestring, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:get, joinpath(@__DIR__, "libcaoslib")), Cstring,
+    return unsafe_string(ccall((:get, "./libcaoslib"), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring,
                                baseurl, cacert, verbose))
 end
 
 function _base_delete(url, cookiestring, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:del, joinpath(@__DIR__, "libcaoslib")), Cstring,
+    return unsafe_string(ccall((:del, "./libcaoslib"), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring,
                                baseurl, cacert, verbose))
@@ -188,14 +192,14 @@ end
 
 
 function _base_put(url, cookiestring, body, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:put, joinpath(@__DIR__, "libcaoslib")), Cstring,
+    return unsafe_string(ccall((:put, "./libcaoslib"), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring, body,
                                baseurl, cacert, verbose))
 end
 
 function _base_post(url, cookiestring, body, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:post, joinpath(@__DIR__, "libcaoslib")), Cstring,
+    return unsafe_string(ccall((:post, "./libcaoslib"), Cstring,
                                (Cstring, Cstring, Cstring, Cstring, Cstring, Cuchar),
                                url, cookiestring, body,
                                baseurl, cacert, verbose))
@@ -248,10 +252,12 @@ function query(querystring, connection::Connection)
                              escapeuri(querystring), connection))
 end
 
+# TODO: <Insert>*</Insert> missing
+
 entity_to_querystring(cont::Vector{Entity}) = join([element.name for element in cont], ',')
 
-insert(cont::Vector{Entity}, connection) = post("Entity/", entity_to_xml(cont), connection)
-update(cont::Vector{Entity}, connection) = put("Entity/", entity_to_xml(cont), connection)
+insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(entity_to_xml(cont)), connection)
+update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(entity_to_xml(cont)), connection)
 retrieve(querystring::String, connection::Connection) = xml_to_entity(get("Entity/" * querystring, connection))
 delete(querystring::String, connection::Connection) = _delete("Entity/" * querystring, connection)
 
