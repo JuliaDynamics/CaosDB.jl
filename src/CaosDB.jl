@@ -1,18 +1,25 @@
-#!/bin/env julia
-# Draft of the julia library for CaosDB
-# A. Schlemmer, 04/2019
-
+"""
+    CaosDB
+CaosDB interface for Julia.
+"""
 module CaosDB
 
 import HTTP.URIs: escapeuri
 import EzXML: ElementNode, TextNode, XMLDocument, link!
 
-# Type for managing the connection
-# --------------------------------
-# baseurl: The base url of your server. Example: "https://localhost:8887/playground/"
-# cacert: The path to a certificate pem file. If left empty no custom certificate will be used.
-# cookiestring: The cookiestring which will be set by the login function after logging in to caosdb.
-# verbose: When set to true the underlying curl library will respond more verbosively. Can be used for debugging.
+"""
+    Connection
+Type for managing the connection. Fields:
+
+- baseurl: The base url of your server.
+  Example: "https://localhost:8887/playground/"
+- cacert: The path to a certificate pem file.
+  If left empty no custom certificate will be used.
+- cookiestring: The cookiestring which will be set by the login function
+  after logging in to caosdb.
+- verbose: When set to `true` the underlying curl library will respond more
+  verbosively. Can be used for debugging.
+"""
 mutable struct Connection
     baseurl::Union{Missing,String}
     cacert::Union{Missing,String}
@@ -119,7 +126,7 @@ function entity_to_xml(entity::Entity)
     Converts an entity representation to XML.
     This is needed for passing the XML in the body of the HTTP request to the server.
     """
-    
+
     node = ElementNode(entity.role)
     sub_to_node(entity.parents, "Parents", node)
     sub_to_node(entity.properties, "Properties", node)
@@ -138,10 +145,10 @@ function entity_to_xml(entity::Entity)
         else
             node["datatype"] = entity.datatype
         end
-        
+
     end
-    
-    
+
+
     return(node)
 end
 
@@ -168,7 +175,7 @@ function _base_login(username, password, baseurl, cacert, verbose)
         error(response[7:end])
     end
     return response
-end    
+end
 
 # TODO: turn the underscore functions into error checking functions like seen above
 #       using a macro.
