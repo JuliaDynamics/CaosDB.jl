@@ -90,7 +90,7 @@ function sub_to_node(subs::Vector{Entity}, name::String, node)
     if (length(subs) > 0)
         parentnode = ElementNode(name)
         for par in subs
-            subnode = entity_to_xml(par)
+            subnode = entity2xml(par)
             link!(parentnode, subnode)
         end
         link!(node, parentnode)
@@ -112,20 +112,19 @@ macro addnonmissingattribute(node, entity, entfield)
     end
 end
 
-function xml2str(xml)
-    """
-    Convert an xml node or document to a string.
-    """
-    return sprint(print, xml)
-end
+"""
+    xml2str(xml)
+Convert an xml node or document to a string.
+"""
+xml2str(xml) = sprint(print, xml)
 
-entities_to_xml(entities::Vector{Entity}) = [entity_to_xml(entity) for entity in entities]
-
-function entity_to_xml(entity::Entity)
-    """
-    Converts an entity representation to XML.
-    This is needed for passing the XML in the body of the HTTP request to the server.
-    """
+"""
+    entity2xlm(entity)
+Convert an `Entity` instance to XML.
+This is needed for passing the XML in the body of the HTTP
+request to the server.
+"""
+function entity2xml(entity::Entity)
 
     node = ElementNode(entity.role)
     sub_to_node(entity.parents, "Parents", node)
@@ -145,14 +144,13 @@ function entity_to_xml(entity::Entity)
         else
             node["datatype"] = entity.datatype
         end
-
     end
-
 
     return(node)
 end
 
-function xml_to_entity(xml)
+function xml2entity(xml)
+    error("not implemented yet")
     doc = parse_xml(xml)
     # ... process xml and create a container
 end
@@ -255,7 +253,7 @@ end
 
 
 function query(querystring, connection::Connection)
-    return xml_to_entity(get("Entity/?query=" *
+    return xml2entity(get("Entity/?query=" *
                              escapeuri(querystring), connection))
 end
 
@@ -263,9 +261,9 @@ end
 
 entity_to_querystring(cont::Vector{Entity}) = join([element.name for element in cont], ',')
 
-insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(entity_to_xml(cont)), connection)
-update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(entity_to_xml(cont)), connection)
-retrieve(querystring::String, connection::Connection) = xml_to_entity(get("Entity/" * querystring, connection))
+insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(entity2xml(cont)), connection)
+update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(entity2xml(cont)), connection)
+retrieve(querystring::String, connection::Connection) = xml2entity(get("Entity/" * querystring, connection))
 delete(querystring::String, connection::Connection) = _delete("Entity/" * querystring, connection)
 
 retrieve(cont::Vector{Entity}, connection) = retrieve(entity_to_querystring(cont), connection)
