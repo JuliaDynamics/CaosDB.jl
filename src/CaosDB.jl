@@ -135,8 +135,10 @@ function entity_to_xml(entity::Entity)
         # TODO: this is not a good solution yet, because of list types
         if (typeof(entity.datatype) == Entity)
             node["datatype"] = entity.datatype.name
+        else
+            node["datatype"] = entity.datatype
         end
-        # TODO: else convert abstract type to string
+        
     end
     
     
