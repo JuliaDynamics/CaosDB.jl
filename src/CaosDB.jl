@@ -4,9 +4,6 @@
 
 module CaosDB
 
-# using EzXML
-# using HTTP
-
 import HTTP.URIs: escapeuri
 import EzXML: ElementNode, TextNode, XMLDocument, link!
 
@@ -23,30 +20,30 @@ mutable struct Connection
     verbose::Bool
 end
 
-abstract type Datatype end
-struct Integer <: Datatype end
-struct Double <: Datatype end
-struct Text <: Datatype end
-struct Datetime <: Datatype end
-struct Date <: Datatype end
-struct Boolean <: Datatype end
-struct Reference <: Datatype end
+# abstract type Datatype end
+# struct Integer <: Datatype end
+# struct Double <: Datatype end
+# struct Text <: Datatype end
+# struct Datetime <: Datatype end
+# struct Date <: Datatype end
+# struct Boolean <: Datatype end
+# struct Reference <: Datatype end
 
-abstract type Role end
-abstract type RecordTypeOrRecord <: Role end
-struct RecordType <: RecordTypeOrRecord end
-struct Record <: RecordTypeOrRecord end
-struct Property <: Role end
-struct File <: Role end
+# abstract type Role end
+# abstract type RecordTypeOrRecord <: Role end
+# struct RecordType <: RecordTypeOrRecord end
+# struct Record <: RecordTypeOrRecord end
+# struct Property <: Role end
+# struct File <: Role end
 
-mutable struct Entity{R<:Role}
-    role::R
+mutable struct Entity
+    role::String
     id::Union{Missing,Int64}
     name::Union{Missing,String}
     value::Union{Missing,String}
-    parents::Array{Entity}
-    properties::Array{Entity}
-    datatype::Union{Missing,Datatype,Entity}
+    parents::Vector{Entity}
+    properties::Vector{Entity}
+    datatype::Union{Missing,String,Entity}
     unit::Union{Missing,String}
     description::Union{Missing,String}
 end
@@ -59,58 +56,23 @@ function next_id()
     return ID_COUNTER
 end
 
-Entity(role; id=next_id(), name=missing, value=missing, parents=[], properties=[], datatype=missing,
-       unit=missing) = Entity(role, id, name, value, parents, properties, datatype, unit)
+Entity(role; id=next_id(), name=missing, value=missing,
+           parents=Vector{Entity}(), properties=Vector{Entity}(), datatype=missing,
+           unit=missing, description=missing) = Entity(role, id, name, value,
+                                                           parents, properties, datatype, unit,
+                                                           description)
 
-Property(;id=next_id(), name=missing, value=missing, parents=[],
+Property(;id=next_id(), name=missing, value=missing, parents=Vector{Entity}(),
                            datatype=missing,
-                           unit=missing) = Entity(Property; id=id, name=name, value=value, parents=parents,
-                      properties=[], datatype=datatype, unit=unit)
+                           unit=missing) = Entity("Property"; id=id, name=name, value=value, parents=parents,
+                      properties=Vector{Entity}(), datatype=datatype, unit=unit)
 
-Record(;id=next_id(), name=missing, parents=[], properties=[])
-    = Entity(Record; id=id, name=name, parents=parents, properties=properties)
+Record(;id=next_id(), name=missing, parents=Vector{Entity}(),
+           properties=Vector{Entity}()) = Entity("Record"; id=id, name=name, parents=parents, properties=properties)
 
-RecordType(;id=next_id(), name=missing, parents=[], properties=[])
-    = Entity(RecordType; id=id, name=name, parents=parents, properties=properties)
+RecordType(;id=next_id(), name=missing, parents=Vector{Entity}(), properties=Vector{Entity}()) = Entity("RecordType"; id=id, name=name, parents=parents, properties=properties)
 
-
-function isrecord(entity)
-    if (typeof(entity) == Record)
-        return true;
-    end
-    return false
-end
-
-function isproperty(entity)
-    if (typeof(entity) == Property)
-        return true;
-    end
-    return false
-end
-
-function isrecordtype(entity)
-    if (typeof(entity) == RecordType)
-        return true;
-    end
-    return false
-end
-
-function role2str(entity)
-    """
-    Convert a role to a string.
-    Returns either "Record", "RecordType" or "Property".
-    """
-    if (isrecord(entity.role))
-        return "Record"
-    elseif (isrecordtype(entity.role))
-        return "RecordType"
-    elseif (isproperty(entity.role))
-        return "Property"
-    end
-    error("Unknown role")
-end
-
-function sub_to_node(subs::Array{Entity}, name::String, node)
+function sub_to_node(subs::Vector{Entity}, name::String, node)
     """
     Helper function
     Checks whether the list subs has length greater 0.
