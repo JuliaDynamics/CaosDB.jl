@@ -90,40 +90,43 @@ function sub_to_node(subs::Vector{Entity}, name::String, node)
     end
 end
 
-# macro addnonmissingattribute(entity, entfield)
-#     s = Symbol(entfield)
-#     quote
-#         if (!ismissing($(entity).$(entfield)))
-#             node[entfield] = $(entity).$(s)
-#         end
-#     end
-# end
+macro addnonmissingattribute(node, entity, entfield)
+    """
+    Add an attribute to an xml node if it is not missing
+    in the entity.
+    """
+    t = esc(Symbol(entity))
+    s = Symbol(entfield)
+    n = esc(Symbol(node))
+    quote
+        if (!ismissing($(t).$(s)))
+            $(n)[$(entfield)] = $(t).$(s)
+        end
+    end
+end
 
-function entity_to_xml(entity)
+function xml2str(xml)
+    """
+    Convert an xml node or document to a string.
+    """
+    return sprint(print, xml)
+end
+
+entities_to_xml(entities::Vector{Entity}) = [entity_to_xml(entity) for entity in entities]
+
+function entity_to_xml(entity::Entity)
     """
     Converts an entity representation to XML.
     This is needed for passing the XML in the body of the HTTP request to the server.
     """
     
-    
-    node = ElementNode(role2str(entity))
+    node = ElementNode(entity.role)
     sub_to_node(entity.parents, "Parents", node)
     sub_to_node(entity.properties, "Properties", node)
-    # @addnonmissingattribute(entity, name)
-    # @addnonmissingattribute(entity, id)
-    # @addnonmissingattribute(entity, unit)
-    if (!ismissing(entity.name))
-            node["name"] = entity.name
-    end
-    if (!ismissing(entity.id))
-            node["id"] = entity.id
-    end
-    if (!ismissing(entity.unit))
-            node["unit"] = entity.unit
-    end
-    if (!ismissing(entity.description))
-            node["description"] = entity.description
-    end
+    @addnonmissingattribute("node", "entity", "name")
+    @addnonmissingattribute("node", "entity", "id")
+    @addnonmissingattribute("node", "entity", "unit")
+    @addnonmissingattribute("node", "entity", "description")
     if (!ismissing(entity.value))
         vlnode = TextNode(entity.value)
         link!(node, vlnode)
