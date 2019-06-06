@@ -64,29 +64,29 @@ function next_id()
 end
 
 Entity(role; id=next_id(), name=missing, value=missing,
-           parents=Vector{Entity}(), properties=Vector{Entity}(), datatype=missing,
-           unit=missing, description=missing) = Entity(role, id, name, value,
-                                                           parents, properties, datatype, unit,
-                                                           description)
+       parents=Vector{Entity}(), properties=Vector{Entity}(), datatype=missing,
+       unit=missing, description=missing) =
+Entity(role, id, name, value, parents, properties, datatype, unit, description)
 
 Property(;id=next_id(), name=missing, value=missing, parents=Vector{Entity}(),
-                           datatype=missing,
-                           unit=missing) = Entity("Property"; id=id, name=name, value=value, parents=parents,
-                      properties=Vector{Entity}(), datatype=datatype, unit=unit)
+         datatype=missing, unit=missing) =
+Entity("Property"; id=id, name=name, value=value, parents=parents,
+       properties=Vector{Entity}(), datatype=datatype, unit=unit)
 
 Record(;id=next_id(), name=missing, parents=Vector{Entity}(),
-           properties=Vector{Entity}()) = Entity("Record"; id=id, name=name, parents=parents, properties=properties)
+       properties=Vector{Entity}()) =
+Entity("Record"; id=id, name=name, parents=parents, properties=properties)
 
 RecordType(;id=next_id(), name=missing, parents=Vector{Entity}(), properties=Vector{Entity}()) = Entity("RecordType"; id=id, name=name, parents=parents, properties=properties)
 
-function sub_to_node(subs::Vector{Entity}, name::String, node)
-    """
-    Helper function
-    Checks whether the list subs has length greater 0.
-    Afterwards creates a new node with given name,
-    creates subnodes for each element of subs,
-    finally links the new node to node.
-    """
+"""
+    sub2node(subs::Vector{Entity}, name::String, node)
+Check whether `subs` has length greater 0.
+Afterwards create a new node with given `name`,
+create subnodes for each element of `subs`,
+finally link the new node to `node`.
+"""
+function sub2node(subs::Vector{Entity}, name::String, node)
     if (length(subs) > 0)
         parentnode = ElementNode(name)
         for par in subs
@@ -97,11 +97,12 @@ function sub_to_node(subs::Vector{Entity}, name::String, node)
     end
 end
 
+"""
+    @addnonmissingattribute node entity entfield
+Add an attribute to an xml node if it is not missing in the entity.
+"""
 macro addnonmissingattribute(node, entity, entfield)
-    """
-    Add an attribute to an xml node if it is not missing
-    in the entity.
-    """
+
     t = esc(Symbol(entity))
     s = Symbol(entfield)
     n = esc(Symbol(node))
@@ -127,8 +128,8 @@ request to the server.
 function entity2xml(entity::Entity)
 
     node = ElementNode(entity.role)
-    sub_to_node(entity.parents, "Parents", node)
-    sub_to_node(entity.properties, "Properties", node)
+    sub2node(entity.parents, "Parents", node)
+    sub2node(entity.properties, "Properties", node)
     @addnonmissingattribute("node", "entity", "name")
     @addnonmissingattribute("node", "entity", "id")
     @addnonmissingattribute("node", "entity", "unit")
@@ -259,15 +260,15 @@ end
 
 # TODO: <Insert>*</Insert> missing
 
-entity_to_querystring(cont::Vector{Entity}) = join([element.name for element in cont], ',')
+entity2querystring(cont::Vector{Entity}) = join([element.name for element in cont], ',')
 
 insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(entity2xml(cont)), connection)
 update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(entity2xml(cont)), connection)
 retrieve(querystring::String, connection::Connection) = xml2entity(get("Entity/" * querystring, connection))
 delete(querystring::String, connection::Connection) = _delete("Entity/" * querystring, connection)
 
-retrieve(cont::Vector{Entity}, connection) = retrieve(entity_to_querystring(cont), connection)
-delete(cont::Vector{Entity}, connection) = delete(entity_to_querystring(cont), connection)
+retrieve(cont::Vector{Entity}, connection) = retrieve(entity2querystring(cont), connection)
+delete(cont::Vector{Entity}, connection) = delete(entity2querystring(cont), connection)
 
 
 end
