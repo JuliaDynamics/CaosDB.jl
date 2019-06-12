@@ -5,6 +5,7 @@
 module CaosDB
 
 import HTTP.URIs: escapeuri
+import HTTP: request
 import EzXML: ElementNode, TextNode, XMLDocument, link!
 
 # Type for managing the connection
@@ -13,11 +14,13 @@ import EzXML: ElementNode, TextNode, XMLDocument, link!
 # cacert: The path to a certificate pem file. If left empty no custom certificate will be used.
 # cookiestring: The cookiestring which will be set by the login function after logging in to caosdb.
 # verbose: When set to true the underlying curl library will respond more verbosively. Can be used for debugging.
+# usec: When set to true the c++ library will be used instead of the julia module HTTP
 mutable struct Connection
     baseurl::Union{Missing,String}
     cacert::Union{Missing,String}
     cookiestring::Union{Missing,String}
     verbose::Bool
+    usec::Bool
 end
 
 # abstract type Datatype end
@@ -146,7 +149,8 @@ function entity_to_xml(entity::Entity)
 end
 
 function xml_to_entity(xml)
-    doc = parse_xml(xml)
+    return xml
+    # doc = parse_xml(xml)
     # ... process xml and create a container
 end
 
@@ -159,14 +163,14 @@ end
 
 caoslib_path = joinpath(@__DIR__, "libcaoslib")
 
-function _base_login(username, password, baseurl, cacert, verbose)
+function _base_login(username, password, baseurl, cacert, verbose, usec)
     response = unsafe_string(ccall((:login, "./libcaoslib"), Cstring,
-                               (Cstring, Cstring, Cstring, Cstring, Cuchar),
-                               username, password,
+                                   (Cstring, Cstring, Cstring, Cstring, Cuchar),
+                                   username, password,
                                    baseurl, cacert, verbose))
     if response[1:6] == "Error:"
         error(response[7:end])
-    end
+    end    
     return response
 end    
 
@@ -206,44 +210,109 @@ function _base_post(url, cookiestring, body, baseurl, cacert, verbose)
 end
 
 function login(username, password, connection::Connection)
-    connection.cookiestring = _base_login(username, password,
-                                          connection.baseurl,
-                                          connection.cacert,
-                                          connection.verbose)
+    if connection.usec
+        connection.cookiestring = _base_login(username, password,
+                                              connection.baseurl,
+                                              connection.cacert,
+                                              connection.verbose)
+    else
+        verbose = 0
+        if connection.verbose
+            verbose = 2
+        end
+        
+        request("POST", connection.baseurl * "login", [],
+                "username="*username*"&password="*password;
+                verbose=verbose,
+                require_ssl_verification=false,
+                cookies=Dict{String,String}("type" => "ok"))
+    end
 end
 
 function get(url, connection::Connection)
-    return _base_get(url,
-                     connection.cookiestring,
-                     connection.baseurl,
-                     connection.cacert,
-                     connection.verbose)
+    if connection.usec
+        return _base_get(url,
+                         connection.cookiestring,
+                         connection.baseurl,
+                         connection.cacert,
+                         connection.verbose)
+    else
+        verbose = 0
+        if connection.verbose
+            verbose = 2
+        end
+        
+        resp = request("GET", connection.baseurl * url;
+                       verbose=verbose,
+                       require_ssl_verification=false,
+                       cookies=Dict{String,String}("type" => "ok"))
+        return resp
+    end
 end
 
 function _delete(url, connection::Connection)
-    return _base_delete(url,
+    if connection.usec
+        return _base_delete(url,
                         connection.cookiestring,
                         connection.baseurl,
                         connection.cacert,
-                        connection.verbose)
+                            connection.verbose)
+    else
+        verbose = 0
+        if connection.verbose
+            verbose = 2
+        end
+        
+        resp = request("DELETE", connection.baseurl * url;
+                       verbose=verbose,
+                       require_ssl_verification=false,
+                       cookies=Dict{String,String}("type" => "ok"))
+        return resp
+    end
 end
 
 function put(url, body, connection::Connection)
-    return _base_put(url,
-                     connection.cookiestring,
-                     body,
-                     connection.baseurl,
-                     connection.cacert,
-                     connection.verbose)
+    if connection.usec
+        return _base_put(url,
+                         connection.cookiestring,
+                         body,
+                         connection.baseurl,
+                         connection.cacert,
+                         connection.verbose)
+    else
+        verbose = 0
+        if connection.verbose
+            verbose = 2
+        end
+        
+        resp = request("PUT", connection.baseurl * url, [], body;
+                       verbose=verbose,
+                       require_ssl_verification=false,
+                       cookies=Dict{String,String}("type" => "ok"))
+        return resp
+    end
 end
 
 function post(url, body, connection::Connection)
-    return _base_post(url,
-                      connection.cookiestring,
-                      body,
-                      connection.baseurl,
-                      connection.cacert,
-                      connection.verbose)
+    if connection.usec
+        return _base_post(url,
+                          connection.cookiestring,
+                          body,
+                          connection.baseurl,
+                          connection.cacert,
+                          connection.verbose)
+    else
+        verbose = 0
+        if connection.verbose
+            verbose = 2
+        end
+        
+        resp = request("POST", connection.baseurl * url, [], body;
+                       verbose=verbose,
+                       require_ssl_verification=false,
+                       cookies=Dict{String,String}("type" => "ok"))
+        return resp
+    end
 end
 
 
