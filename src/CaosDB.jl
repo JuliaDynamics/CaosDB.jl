@@ -6,7 +6,7 @@ module CaosDB
 
 import HTTP.URIs: escapeuri
 import HTTP: request
-import EzXML: ElementNode, TextNode, XMLDocument, link!
+import EzXML: ElementNode, TextNode, XMLDocument, link!, parsexml, root, elements, attributes
 
 """
     Connection
@@ -56,6 +56,7 @@ mutable struct Entity
     datatype::Union{Missing,String,Entity}
     unit::Union{Missing,String}
     description::Union{Missing,String}
+    importance::Union{Missing,String}
 end
 
 global ID_COUNTER = 0
@@ -68,14 +69,14 @@ end
 
 Entity(role; id=next_id(), name=missing, value=missing,
        parents=Vector{Entity}(), properties=Vector{Entity}(), datatype=missing,
-       unit=missing, description=missing) =
-Entity(role, id, name, value, parents, properties, datatype, unit, description)
+       unit=missing, description=missing, importance=missing) =
+Entity(role, id, name, value, parents, properties, datatype, unit, description, importance)
 
 Property(;id=next_id(), name=missing, value=missing, parents=Vector{Entity}(),
-         datatype=missing, unit=missing, description=missing) =
+         datatype=missing, unit=missing, description=missing, importance=missing) =
 Entity("Property"; id=id, name=name, value=value, parents=parents,
        properties=Vector{Entity}(), datatype=datatype, unit=unit,
-                                         description=description)
+                                         description=description, importance=importance)
 
 Record(;id=next_id(), name=missing, parents=Vector{Entity}(),
        properties=Vector{Entity}(), description=missing) =
@@ -121,6 +122,7 @@ macro addnonmissingattribute(node, entity, entfield)
         end
     end
 end
+
 
 """
     xml2str(xml)
@@ -174,9 +176,77 @@ function entity2xml(entity::Entity)
     return node 
 end
 
-function xml2entity(xml)
-    error("not implemented yet")
-    doc = parse_xml(xml)
+"""
+    xml2entity(node)
+Convert a single node to an entity, possibly
+also converting subnodes as Properties or Parents.
+"""
+function xml2entity(node)
+    newent = Entity(node.name)
+    for at in attributes(node)
+        if at.name == "name"
+            newent.name = at.content
+        elseif at.name == "description"
+            newent.description = at.description
+        elseif at.name =="datatype"
+            newent.datatype = at.content
+        elseif at.name == "importance"
+            newent.importance = at.content
+        elseif at.name == "id"
+            newent.id = parse(Int64, at.content)
+        end        
+    end
+
+    for el in elements(node)
+        if el.name == "Parent"
+            push!(newent.parents, xml2entity(el))
+        end
+
+        if el.name == "Property"
+            push!(newent.properties, xml2entity(el))
+        end
+    end
+
+    if node.name == "Property"
+        newent.value = strip(node.content)
+    end
+    
+    
+    return newent
+end
+
+
+"""
+    xml2entity(xml)
+Convert an xml document to a vector of entities.
+"""
+function xml2entities(xml)
+    # error("not implemented yet")
+    doc = parsexml(xml)
+    root_node = root(doc)
+    if root_node.name != "Response"
+        println("Warning: This might be malformed")
+    end
+
+    # Iterate over subnodes of response.
+    # Records, RecordTypes, Properties and
+    # in the future Files will be found and converted.
+    container = Vector{Entity}()
+    for el in elements(root_node)
+        if el.name in ["UserInfo", "Query"]
+            # skip
+        elseif el.name in ["RecordType", "Record", "Property"]
+            push!(container, xml2entity(el))
+        elseif el.name in ["File"]
+            # skip for now
+        else
+            error("Error: Unknown tag " * el.name)
+        end
+        
+
+            
+    end
+    return container
 end
 
 
@@ -269,9 +339,9 @@ function get(url, connection::Connection)
         
         resp = request("GET", connection.baseurl * url;
                        verbose=verbose,
-#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
-        return resp
+        # error checking (HTTP error code) missing
+        return String(resp.body)
     end
 end
 
@@ -290,9 +360,9 @@ function _delete(url, connection::Connection)
         
         resp = request("DELETE", connection.baseurl * url;
                        verbose=verbose,
-#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
-        return resp
+        # error checking (HTTP error code) missing
+        return String(resp.body)
     end
 end
 
@@ -312,9 +382,9 @@ function put(url, body, connection::Connection)
         
         resp = request("PUT", connection.baseurl * url, [], body;
                        verbose=verbose,
-#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
-        return resp
+        # error checking (HTTP error code) missing
+        return String(resp.body)
     end
 end
 
@@ -337,15 +407,15 @@ function post(url, body, connection::Connection)
         
         resp = request("POST", connection.baseurl * url, [], body;
                        verbose=verbose,
-#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
-        return resp
+        # error checking (HTTP error code) missing
+        return String(resp.body)
     end
 end
 
 
 function query(querystring, connection::Connection)
-    return xml2entity(get("Entity/?query=" *
+    return xml2entities(get("Entity/?query=" *
                              escapeuri(querystring), connection))
 end
 
@@ -353,7 +423,7 @@ entity2querystring(cont::Vector{Entity}) = join([element.name for element in con
 
 insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Insert")), connection)
 update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Update")), connection)
-retrieve(querystring::String, connection::Connection) = xml2entity(get("Entity/" * querystring, connection))
+retrieve(querystring::String, connection::Connection) = xml2entities(get("Entity/" * querystring, connection))
 delete(querystring::String, connection::Connection) = _delete("Entity/" * querystring, connection)
 
 retrieve(cont::Vector{Entity}, connection) = retrieve(entity2querystring(cont), connection)
