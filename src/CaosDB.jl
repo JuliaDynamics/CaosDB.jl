@@ -72,15 +72,21 @@ Entity(role; id=next_id(), name=missing, value=missing,
 Entity(role, id, name, value, parents, properties, datatype, unit, description)
 
 Property(;id=next_id(), name=missing, value=missing, parents=Vector{Entity}(),
-         datatype=missing, unit=missing) =
+         datatype=missing, unit=missing, description=missing) =
 Entity("Property"; id=id, name=name, value=value, parents=parents,
-       properties=Vector{Entity}(), datatype=datatype, unit=unit)
+       properties=Vector{Entity}(), datatype=datatype, unit=unit,
+                                         description=description)
 
 Record(;id=next_id(), name=missing, parents=Vector{Entity}(),
-       properties=Vector{Entity}()) =
-Entity("Record"; id=id, name=name, parents=parents, properties=properties)
+       properties=Vector{Entity}(), description=missing) =
+Entity("Record"; id=id, name=name, parents=parents, properties=properties,
+                                         description=description)
 
-RecordType(;id=next_id(), name=missing, parents=Vector{Entity}(), properties=Vector{Entity}()) = Entity("RecordType"; id=id, name=name, parents=parents, properties=properties)
+RecordType(;id=next_id(), name=missing,
+           parents=Vector{Entity}(), properties=Vector{Entity}(),
+           description=missing) = Entity("RecordType"; id=id, name=name,
+                                         parents=parents, properties=properties,
+                                         description=description)
 
 """
     sub2node(subs::Vector{Entity}, name::String, node)
@@ -123,13 +129,29 @@ Convert an xml node or document to a string.
 xml2str(xml) = sprint(print, xml)
 
 """
+    encloseElementNode
+Add nodes specified by nodes as subnodes to a new elemend node specified by enclosingElement.
+- enclosingElement: Name of the node that encloses the entity. One example is "Insert".
+"""
+function encloseElementNode(nodes, enclosingElement::String)
+    enclosingNode = ElementNode(enclosingElement)
+    for node in nodes
+        link!(enclosingNode, node)
+    end
+    
+    return(enclosingNode)
+end
+
+# encloseElementNode(node, enclosingElement) = encloseElementNode([node], enclosingElement)
+
+
+"""
     entity2xlm(entity)
 Convert an `Entity` instance to XML.
 This is needed for passing the XML in the body of the HTTP
 request to the server.
 """
 function entity2xml(entity::Entity)
-
     node = ElementNode(entity.role)
     sub2node(entity.parents, "Parents", node)
     sub2node(entity.properties, "Properties", node)
@@ -149,8 +171,7 @@ function entity2xml(entity::Entity)
             node["datatype"] = entity.datatype
         end
     end
-
-    return(node)
+    return node 
 end
 
 function xml2entity(xml)
@@ -228,7 +249,7 @@ function login(username, password, connection::Connection)
         request("POST", connection.baseurl * "login", [],
                 "username="*username*"&password="*password;
                 verbose=verbose,
-                require_ssl_verification=false,
+#                require_ssl_verification=false,
                 cookies=Dict{String,String}("type" => "ok"))
     end
 end
@@ -248,7 +269,7 @@ function get(url, connection::Connection)
         
         resp = request("GET", connection.baseurl * url;
                        verbose=verbose,
-                       require_ssl_verification=false,
+#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
         return resp
     end
@@ -269,7 +290,7 @@ function _delete(url, connection::Connection)
         
         resp = request("DELETE", connection.baseurl * url;
                        verbose=verbose,
-                       require_ssl_verification=false,
+#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
         return resp
     end
@@ -291,13 +312,16 @@ function put(url, body, connection::Connection)
         
         resp = request("PUT", connection.baseurl * url, [], body;
                        verbose=verbose,
-                       require_ssl_verification=false,
+#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
         return resp
     end
 end
 
 function post(url, body, connection::Connection)
+    println("----------------------------")
+    println(body)
+    println("----------------------------")
     if connection.usec
         return _base_post(url,
                           connection.cookiestring,
@@ -313,7 +337,7 @@ function post(url, body, connection::Connection)
         
         resp = request("POST", connection.baseurl * url, [], body;
                        verbose=verbose,
-                       require_ssl_verification=false,
+#                       require_ssl_verification=false,
                        cookies=Dict{String,String}("type" => "ok"))
         return resp
     end
@@ -325,12 +349,10 @@ function query(querystring, connection::Connection)
                              escapeuri(querystring), connection))
 end
 
-# TODO: <Insert>*</Insert> missing
-
 entity2querystring(cont::Vector{Entity}) = join([element.name for element in cont], ',')
 
-insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(entity2xml(cont)), connection)
-update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(entity2xml(cont)), connection)
+insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Insert")), connection)
+update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Update")), connection)
 retrieve(querystring::String, connection::Connection) = xml2entity(get("Entity/" * querystring, connection))
 delete(querystring::String, connection::Connection) = _delete("Entity/" * querystring, connection)
 
