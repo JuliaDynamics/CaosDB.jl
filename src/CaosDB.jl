@@ -278,66 +278,14 @@ end
 
 
 
-
-function passpw(identifier)
-    return unsafe_string(ccall((:pass_pw, joinpath(@__DIR__, "libcaoslib")), Cstring, (Cstring,), identifier))
-end
-
-caoslib_path = joinpath(@__DIR__, "libcaoslib")
-
-function _base_login(username, password, baseurl, cacert, verbose, usec)
-    response = unsafe_string(ccall((:login, "./libcaoslib"), Cstring,
-                                   (Cstring, Cstring, Cstring, Cstring, Cuchar),
-                                   username, password,
-                                   baseurl, cacert, verbose))
-    if response[1:6] == "Error:"
-        error(response[7:end])
-    end    
-    return response
-end
-
 # TODO: turn the underscore functions into error checking functions like seen above
 #       using a macro.
 # _base_login = @errorchecking(_base_login)
 
 # why is this not working: joinpath(@__DIR__, "libcaoslib")
 
-function _base_get(url, cookiestring, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:get, "./libcaoslib"), Cstring,
-                               (Cstring, Cstring, Cstring, Cstring, Cuchar),
-                               url, cookiestring,
-                               baseurl, cacert, verbose))
-end
-
-function _base_delete(url, cookiestring, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:del, "./libcaoslib"), Cstring,
-                               (Cstring, Cstring, Cstring, Cstring, Cuchar),
-                               url, cookiestring,
-                               baseurl, cacert, verbose))
-end
-
-
-function _base_put(url, cookiestring, body, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:put, "./libcaoslib"), Cstring,
-                               (Cstring, Cstring, Cstring, Cstring, Cstring, Cuchar),
-                               url, cookiestring, body,
-                               baseurl, cacert, verbose))
-end
-
-function _base_post(url, cookiestring, body, baseurl, cacert, verbose)
-    return unsafe_string(ccall((:post, "./libcaoslib"), Cstring,
-                               (Cstring, Cstring, Cstring, Cstring, Cstring, Cuchar),
-                               url, cookiestring, body,
-                               baseurl, cacert, verbose))
-end
-
 function login(username, password, connection::Connection)
-    if connection.usec
-        connection.cookiestring = _base_login(username, password,
-                                              connection.baseurl,
-                                              connection.cacert,
-                                              connection.verbose)
-    else
+
         verbose = 0
         if connection.verbose
             verbose = 2
@@ -348,17 +296,11 @@ function login(username, password, connection::Connection)
                 verbose=verbose,
 #                require_ssl_verification=false,
                 cookies=Dict{String,String}("type" => "ok"))
-    end
+
 end
 
 function get(url, connection::Connection)
-    if connection.usec
-        return _base_get(url,
-                         connection.cookiestring,
-                         connection.baseurl,
-                         connection.cacert,
-                         connection.verbose)
-    else
+
         verbose = 0
         if connection.verbose
             verbose = 2
@@ -369,17 +311,11 @@ function get(url, connection::Connection)
                        cookies=Dict{String,String}("type" => "ok"))
         # error checking (HTTP error code) missing
         return String(resp.body)
-    end
+
 end
 
 function _delete(url, connection::Connection)
-    if connection.usec
-        return _base_delete(url,
-                        connection.cookiestring,
-                        connection.baseurl,
-                        connection.cacert,
-                            connection.verbose)
-    else
+
         verbose = 0
         if connection.verbose
             verbose = 2
@@ -390,18 +326,10 @@ function _delete(url, connection::Connection)
                        cookies=Dict{String,String}("type" => "ok"))
         # error checking (HTTP error code) missing
         return String(resp.body)
-    end
+
 end
 
 function put(url, body, connection::Connection)
-    if connection.usec
-        return _base_put(url,
-                         connection.cookiestring,
-                         body,
-                         connection.baseurl,
-                         connection.cacert,
-                         connection.verbose)
-    else
         verbose = 0
         if connection.verbose
             verbose = 2
@@ -412,21 +340,14 @@ function put(url, body, connection::Connection)
                        cookies=Dict{String,String}("type" => "ok"))
         # error checking (HTTP error code) missing
         return String(resp.body)
-    end
+
 end
 
 function post(url, body, connection::Connection)
     println("---- SEND ----")
     println(parsexml(body))
     println("---- RECV ----")
-    if connection.usec
-        return _base_post(url,
-                          connection.cookiestring,
-                          body,
-                          connection.baseurl,
-                          connection.cacert,
-                          connection.verbose)
-    else
+
         verbose = 0
         if connection.verbose
             verbose = 2
@@ -438,7 +359,6 @@ function post(url, body, connection::Connection)
         # error checking (HTTP error code) missing
         println(parsexml(String(resp.body)))
         return String(resp.body)
-    end
 end
 
 
