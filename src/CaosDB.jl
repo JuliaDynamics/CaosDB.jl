@@ -30,6 +30,11 @@ mutable struct Connection
     usec::Bool
 end
 
+# Todo:
+# add "five" function variables to Connection storing the respective
+# put, get, del, etc. function pointers.
+# On creation of the Connection object, a switch sets the respective functions.
+
 # abstract type Datatype end
 # struct Integer <: Datatype end
 # struct Double <: Datatype end
@@ -155,8 +160,30 @@ request to the server.
 """
 function entity2xml(entity::Entity)
     node = ElementNode(entity.role)
-    sub2node(entity.parents, "Parents", node)
-    sub2node(entity.properties, "Properties", node)
+    if length(entity.parents) > 0
+        for par in entity.parents
+            parentnode = ElementNode("Parent")
+            if ismissing(par.id)
+                error("Parents need an ID")
+            end
+            
+            parentnode["id"] = par.id
+            parentnode["name"] = par.name
+            link!(node, parentnode)
+        end
+        
+    else
+        
+    end
+
+    for propel in entity.properties
+        propnode = entity2xml(propel)
+        link!(node, propnode)
+    end
+    
+    
+    # sub2node(entity.parents, "Parents", node)
+    # sub2node(entity.properties, "Properties", node)
     @addnonmissingattribute("node", "entity", "name")
     @addnonmissingattribute("node", "entity", "id")
     @addnonmissingattribute("node", "entity", "unit")
@@ -187,7 +214,7 @@ function xml2entity(node)
         if at.name == "name"
             newent.name = at.content
         elseif at.name == "description"
-            newent.description = at.description
+            newent.description = at.content
         elseif at.name =="datatype"
             newent.datatype = at.content
         elseif at.name == "importance"
@@ -235,7 +262,7 @@ function xml2entities(xml)
     for el in elements(root_node)
         if el.name in ["UserInfo", "Query"]
             # skip
-        elseif el.name in ["RecordType", "Record", "Property"]
+        elseif el.name in ["RecordType", "Record", "Property", "Entity"]
             push!(container, xml2entity(el))
         elseif el.name in ["File"]
             # skip for now
@@ -389,9 +416,9 @@ function put(url, body, connection::Connection)
 end
 
 function post(url, body, connection::Connection)
-    println("----------------------------")
-    println(body)
-    println("----------------------------")
+    println("---- SEND ----")
+    println(parsexml(body))
+    println("---- RECV ----")
     if connection.usec
         return _base_post(url,
                           connection.cookiestring,
@@ -409,6 +436,7 @@ function post(url, body, connection::Connection)
                        verbose=verbose,
                        cookies=Dict{String,String}("type" => "ok"))
         # error checking (HTTP error code) missing
+        println(parsexml(String(resp.body)))
         return String(resp.body)
     end
 end
@@ -421,7 +449,7 @@ end
 
 entity2querystring(cont::Vector{Entity}) = join([element.name for element in cont], ',')
 
-insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Insert")), connection)
+insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Request")), connection)
 update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Update")), connection)
 retrieve(querystring::String, connection::Connection) = xml2entities(get("Entity/" * querystring, connection))
 delete(querystring::String, connection::Connection) = _delete("Entity/" * querystring, connection)
