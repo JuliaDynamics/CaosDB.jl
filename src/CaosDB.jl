@@ -30,27 +30,6 @@ mutable struct Connection
     usec::Bool
 end
 
-# Todo:
-# add "five" function variables to Connection storing the respective
-# put, get, del, etc. function pointers.
-# On creation of the Connection object, a switch sets the respective functions.
-
-# abstract type Datatype end
-# struct Integer <: Datatype end
-# struct Double <: Datatype end
-# struct Text <: Datatype end
-# struct Datetime <: Datatype end
-# struct Date <: Datatype end
-# struct Boolean <: Datatype end
-# struct Reference <: Datatype end
-
-# abstract type Role end
-# abstract type RecordTypeOrRecord <: Role end
-# struct RecordType <: RecordTypeOrRecord end
-# struct Record <: RecordTypeOrRecord end
-# struct Property <: Role end
-# struct File <: Role end
-
 mutable struct Entity
     role::String
     id::Union{Missing,Int64}
@@ -248,7 +227,6 @@ end
 Convert an xml document to a vector of entities.
 """
 function xml2entities(xml)
-    # error("not implemented yet")
     doc = parsexml(xml)
     root_node = root(doc)
     if root_node.name != "Response"
@@ -270,8 +248,8 @@ function xml2entities(xml)
             error("Error: Unknown tag " * el.name)
         end
         
-
-            
+        
+        
     end
     return container
 end
@@ -285,86 +263,86 @@ end
 # why is this not working: joinpath(@__DIR__, "libcaoslib")
 
 function login(username, password, connection::Connection)
-
-        verbose = 0
-        if connection.verbose
-            verbose = 2
-        end
-        
-        request("POST", connection.baseurl * "login", [],
-                "username="*username*"&password="*password;
-                verbose=verbose,
-#                require_ssl_verification=false,
-                cookies=Dict{String,String}("type" => "ok"))
-
+    
+    verbose = 0
+    if connection.verbose
+        verbose = 2
+    end
+    
+    request("POST", connection.baseurl * "login", [],
+            "username="*username*"&password="*password;
+            verbose=verbose,
+            #                require_ssl_verification=false,
+            cookies=Dict{String,String}("type" => "ok"))
+    
 end
 
 function get(url, connection::Connection)
-
-        verbose = 0
-        if connection.verbose
-            verbose = 2
-        end
-        
-        resp = request("GET", connection.baseurl * url;
-                       verbose=verbose,
-                       cookies=Dict{String,String}("type" => "ok"))
-        # error checking (HTTP error code) missing
-        return String(resp.body)
-
+    
+    verbose = 0
+    if connection.verbose
+        verbose = 2
+    end
+    
+    resp = request("GET", connection.baseurl * url;
+                   verbose=verbose,
+                   cookies=Dict{String,String}("type" => "ok"))
+    # error checking (HTTP error code) missing
+    return String(resp.body)
+    
 end
 
 function _delete(url, connection::Connection)
-
-        verbose = 0
-        if connection.verbose
-            verbose = 2
-        end
-        
-        resp = request("DELETE", connection.baseurl * url;
-                       verbose=verbose,
-                       cookies=Dict{String,String}("type" => "ok"))
-        # error checking (HTTP error code) missing
-        return String(resp.body)
-
+    
+    verbose = 0
+    if connection.verbose
+        verbose = 2
+    end
+    
+    resp = request("DELETE", connection.baseurl * url;
+                   verbose=verbose,
+                   cookies=Dict{String,String}("type" => "ok"))
+    # error checking (HTTP error code) missing
+    return String(resp.body)
+    
 end
 
 function put(url, body, connection::Connection)
-        verbose = 0
-        if connection.verbose
-            verbose = 2
-        end
-        
-        resp = request("PUT", connection.baseurl * url, [], body;
-                       verbose=verbose,
-                       cookies=Dict{String,String}("type" => "ok"))
-        # error checking (HTTP error code) missing
-        return String(resp.body)
-
+    verbose = 0
+    if connection.verbose
+        verbose = 2
+    end
+    
+    resp = request("PUT", connection.baseurl * url, [], body;
+                   verbose=verbose,
+                   cookies=Dict{String,String}("type" => "ok"))
+    # error checking (HTTP error code) missing
+    return String(resp.body)
+    
 end
 
 function post(url, body, connection::Connection)
-    println("---- SEND ----")
-    println(parsexml(body))
-    println("---- RECV ----")
-
-        verbose = 0
-        if connection.verbose
-            verbose = 2
-        end
-        
-        resp = request("POST", connection.baseurl * url, [], body;
-                       verbose=verbose,
-                       cookies=Dict{String,String}("type" => "ok"))
-        # error checking (HTTP error code) missing
-        println(parsexml(String(resp.body)))
-        return String(resp.body)
+    # println("---- SEND ----")
+    # println(parsexml(body))
+    # println("---- RECV ----")
+    
+    verbose = 0
+    if connection.verbose
+        verbose = 2
+    end
+    
+    resp = request("POST", connection.baseurl * url, [], body;
+                   verbose=verbose,
+                   cookies=Dict{String,String}("type" => "ok"))
+    # error checking (HTTP error code) missing
+    println(parsexml(String(resp.body)))
+    return String(resp.body)
 end
 
 
 function query(querystring, connection::Connection)
     return xml2entities(get("Entity/?query=" *
-                             escapeuri(querystring), connection))
+                            escapeuri(querystring), connection))
 end
 
 entity2querystring(cont::Vector{Entity}) = join([element.name for element in cont], ',')
