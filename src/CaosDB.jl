@@ -8,6 +8,9 @@ import HTTP.URIs: escapeuri
 import HTTP: request
 import EzXML: ElementNode, TextNode, XMLDocument, link!, parsexml, root, elements, attributes
 
+using Parameters
+
+
 """
     Connection
 Type for managing the connection. Fields:
@@ -22,25 +25,12 @@ Type for managing the connection. Fields:
   verbosively. Can be used for debugging.
 - usec: When set to true the c++ library will be used instead of the julia module HTTP
 """
-mutable struct Connection
+@with_kw mutable struct Connection
     baseurl::Union{Missing,String}
     cacert::Union{Missing,String}
     cookiestring::Union{Missing,String}
     verbose::Bool
     usec::Bool
-end
-
-mutable struct Entity
-    role::String
-    id::Union{Missing,Int64}
-    name::Union{Missing,String}
-    value::Union{Missing,String}
-    parents::Vector{Entity}
-    properties::Vector{Entity}
-    datatype::Union{Missing,String,Entity}
-    unit::Union{Missing,String}
-    description::Union{Missing,String}
-    importance::Union{Missing,String}
 end
 
 global ID_COUNTER = 0
@@ -51,27 +41,22 @@ function next_id()
     return ID_COUNTER
 end
 
-Entity(role; id=next_id(), name=missing, value=missing,
-       parents=Vector{Entity}(), properties=Vector{Entity}(), datatype=missing,
-       unit=missing, description=missing, importance=missing) =
-Entity(role, id, name, value, parents, properties, datatype, unit, description, importance)
+@with_kw mutable struct Entity
+    role::String
+    id::Union{Missing,Int64} = next_id()
+    name::Union{Missing,String} = missing
+    value::Union{Missing,String} = missing
+    parents::Vector{Entity} = Vector{Entity}()
+    properties::Vector{Entity} = Vector{Entity}()
+    datatype::Union{Missing,String,Entity} = missing
+    unit::Union{Missing,String} = missing
+    description::Union{Missing,String} = missing
+    importance::Union{Missing,String} = missing
+end
 
-Property(;id=next_id(), name=missing, value=missing, parents=Vector{Entity}(),
-         datatype=missing, unit=missing, description=missing, importance=missing) =
-Entity("Property"; id=id, name=name, value=value, parents=parents,
-       properties=Vector{Entity}(), datatype=datatype, unit=unit,
-                                         description=description, importance=importance)
-
-Record(;id=next_id(), name=missing, parents=Vector{Entity}(),
-       properties=Vector{Entity}(), description=missing) =
-Entity("Record"; id=id, name=name, parents=parents, properties=properties,
-                                         description=description)
-
-RecordType(;id=next_id(), name=missing,
-           parents=Vector{Entity}(), properties=Vector{Entity}(),
-           description=missing) = Entity("RecordType"; id=id, name=name,
-                                         parents=parents, properties=properties,
-                                         description=description)
+Property(; kwargs...) = Entity(role="Property", kwargs...)
+Record(; kwargs...) = Entity(role="Record", kwargs...)
+RecordType(; kwargs...) = Entity(role="RecordType", kwargs...)
 
 """
     sub2node(subs::Vector{Entity}, name::String, node)
@@ -188,7 +173,7 @@ Convert a single node to an entity, possibly
 also converting subnodes as Properties or Parents.
 """
 function xml2entity(node)
-    newent = Entity(node.name)
+    newent = Entity(role=node.name)
     for at in attributes(node)
         if at.name == "name"
             newent.name = at.content
@@ -277,7 +262,7 @@ function login(username, password, connection::Connection)
     
 end
 
-function get(url, connection::Connection)
+function _get(url, connection::Connection)
     
     verbose = 0
     if connection.verbose
@@ -341,7 +326,7 @@ end
 
 
 function query(querystring, connection::Connection)
-    return xml2entities(get("Entity/?query=" *
+    return xml2entities(_get("Entity/?query=" *
                             escapeuri(querystring), connection))
 end
 
@@ -349,11 +334,10 @@ entity2querystring(cont::Vector{Entity}) = join([element.name for element in con
 
 insert(cont::Vector{Entity}, connection) = post("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Request")), connection)
 update(cont::Vector{Entity}, connection) = put("Entity/", xml2str(encloseElementNode(entity2xml.(cont), "Update")), connection)
-retrieve(querystring::String, connection::Connection) = xml2entities(get("Entity/" * querystring, connection))
+retrieve(querystring::String, connection::Connection) = xml2entities(_get("Entity/" * querystring, connection))
 delete(querystring::String, connection::Connection) = _delete("Entity/" * querystring, connection)
 
 retrieve(cont::Vector{Entity}, connection) = retrieve(entity2querystring(cont), connection)
 delete(cont::Vector{Entity}, connection) = delete(entity2querystring(cont), connection)
-
 
 end
