@@ -1,6 +1,10 @@
 name = "CaosDB"
+uuid = "e21bfd3d-73c9-4f59-a3e0-ab690b419b1d"
 repo = "https://github.com/JuliaDynamics/CaosDB.jl.git"
 version = "0.0.1"
+
+[deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 
 [compat]
 julia = "1.0"
