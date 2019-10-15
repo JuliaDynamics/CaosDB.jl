@@ -54,9 +54,9 @@ end
     importance::Union{Missing,String} = missing
 end
 
-Property(; kwargs...) = Entity(role="Property", kwargs...)
-Record(; kwargs...) = Entity(role="Record", kwargs...)
-RecordType(; kwargs...) = Entity(role="RecordType", kwargs...)
+Property(; kwargs...) = Entity(role="Property"; kwargs...)
+Record(; kwargs...) = Entity(role="Record"; kwargs...)
+RecordType(; kwargs...) = Entity(role="RecordType"; kwargs...)
 
 """
     sub2node(subs::Vector{Entity}, name::String, node)
