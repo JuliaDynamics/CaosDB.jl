@@ -10,35 +10,35 @@ Currently WIP.
 # Howto
 
 Import the package:
-```
+```julia
 using CaosDB
 ```
 
 Create a connection:
-```
+```julia
 c = CaosDB.Connection("https://playground.indiscale.com/", "", "", false, false)
 ```
 The connection stores the address to the CaosDB instance (here: playground.indiscale.com). It is passed on to other functions within the CaosDB package.
 
 Retrieve an Entity by id:
-```
+```julia
 CaosDB.retrieve("281", c)
 ```
 
 
 Do a simple query:
-```
+```julia
 doc = CaosDB.query("Find Experiment", c)
 ```
 
 Create a simple property:
-```
+```julia
 p = CaosDB.Property(name="a", datatype="INTEGER",
                    description="just a property which we can use for a quick test")
 ```
 
 Create a simple record type:
-```
+```julia
 rt = CaosDB.RecordType(name="CoolType", properties=[p])
 CaosDB.insert([p, rt], c)
 ```
@@ -46,7 +46,7 @@ CaosDB.insert([p, rt], c)
 ... of course that does not work. Insufficient permissions.
 
 So let's try as admin:
-```
+```julia
 c2 = CaosDB.Connection("https://playground.indiscale.com/", "", "", false, false)
 CaosDB.login("admin", "caosdb", c2)
 CaosDB.insert([p, rt], c2)
@@ -57,7 +57,7 @@ Ok, that should have worked! If you run this code twice, you end up having multi
 
 
 So, what about records?
-```
+```julia
 r1 = CaosDB.Record(parents=CaosDB.query("Find CoolType", c2),
                    properties=[CaosDB.Property(name="a", value="283")])
 res = CaosDB.insert([r1], c2)
