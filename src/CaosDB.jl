@@ -17,16 +17,16 @@ Type for managing the connection. Fields:
 
 - baseurl: The base url of your server.
   Example: "https://localhost:8887/playground/"
+  The trailing slash is important!
 - cookiestring: The cookiestring which will be set by the login function
-  after logging in to caosdb.
+  after logging in to caosdb. This will usually be automatically set by login.
 - verbose: When set to `true` the underlying curl library will respond more
   verbosively. Can be used for debugging.
 """
 @with_kw mutable struct Connection
     baseurl::Union{Missing,String}
-    cacert::Union{Missing,String}
-    cookiestring::Union{Missing,String}
-    verbose::Bool
+    cookiestring::Union{Missing,String} = missing
+    verbose::Bool = false
 end
 
 global ID_COUNTER = 0
@@ -37,6 +37,9 @@ function next_id()
     return ID_COUNTER
 end
 
+"""
+   Base type for all CaosDB entities.
+"""
 @with_kw mutable struct Entity
     role::String
     id::Union{Missing,Int64} = next_id()
