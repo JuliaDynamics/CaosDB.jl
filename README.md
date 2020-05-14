@@ -16,9 +16,11 @@ using CaosDB
 
 Create a connection:
 ```julia
-c = CaosDB.Connection("https://playground.indiscale.com/", "", "", false, false)
+c = CaosDB.Connection("https://demo.indiscale.com/")
 ```
-The connection stores the address to the CaosDB instance (here: playground.indiscale.com). It is passed on to other functions within the CaosDB package.
+The connection stores the address to the CaosDB instance (here: demo.indiscale.com). It is passed on to other functions within the CaosDB package. Note that the trailing slash is important, so "https://demo.indiscale.com" would not work. demo.indiscale.com is the demo instance hosted by IndiScale GmbH. This instance should not be used for writing (e.g. inserting) of data. Please use playground.indiscale.com instead.
+
+## Retrieve and Query
 
 Retrieve an Entity by id:
 ```julia
@@ -28,8 +30,22 @@ CaosDB.retrieve("281", c)
 
 Do a simple query:
 ```julia
-doc = CaosDB.query("Find Experiment", c)
+doc = CaosDB.query("Find Analysis", c)
 ```
+
+You can access the individual entries using the `properties` attribute of the entity structs.
+`doc[1]` is a *RecordType* in this case and contains only unset properties:
+```julia
+doc[1].properties[1].value
+```
+
+`doc[2]` is a *Record*, so values are set:
+
+```julia
+doc[2].properties[3].value
+```
+
+## Inserting of RecordTypes and Records
 
 Create a simple property:
 ```julia
@@ -47,7 +63,7 @@ CaosDB.insert([p, rt], c)
 
 So let's try as admin:
 ```julia
-c2 = CaosDB.Connection("https://playground.indiscale.com/", "", "", false, false)
+c2 = CaosDB.Connection("https://playground.indiscale.com/")
 CaosDB.login("admin", "caosdb", c2)
 CaosDB.insert([p, rt], c2)
 ```
