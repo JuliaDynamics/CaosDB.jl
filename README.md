@@ -83,6 +83,8 @@ CaosDB article: https://www.mdpi.com/2306-5729/4/2/83/htm
 
 Sourcecode: https://gitlab.com/caosdb
 
+CaosDB-Documentation: https://gitlab.com/caosdb/caosdb/-/wikis/home
+
 Research Group Biomedical Physics Webpage: http://bmp.ds.mpg.de/software/caosdb/
 
 Demo instance hosted by IndiScale: https://demo.indiscale.com
