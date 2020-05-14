@@ -5,6 +5,8 @@ Currently WIP.
 
 *Note (2019-10-15):* As XML support in Julia is not working smoothly we are working on providing a json interface. This is currently work in progress.
 
+*Update (2020-05-14):* Problems with EzXML seem to have been solved. This library is working.
+
 # Howto
 
 Import the package:
@@ -61,6 +63,17 @@ r1 = CaosDB.Record(parents=CaosDB.query("Find CoolType", c2),
 res = CaosDB.insert([r1], c2)
 ```
 
+Now, that a *RecordType* and a *Record* have been inserted, we can easily search for them using CaosDB CQL (See https://gitlab.com/caosdb/caosdb/-/wikis/manuals/CQL/CaosDB%20Query%20Language for details):
+
+```julia
+search_results = CaosDB.query("Find CoolType", c2)
+
+# Or, if you are only interested in the record:
+search_results = CaosDB.query("Find Record CoolType", c2)
+
+# Access your results:
+search_results[1].properties[1].value
+```
 
 
 # About CaosDB
