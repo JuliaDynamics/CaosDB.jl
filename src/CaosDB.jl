@@ -17,20 +17,16 @@ Type for managing the connection. Fields:
 
 - baseurl: The base url of your server.
   Example: "https://localhost:8887/playground/"
-- cacert: The path to a certificate pem file.
-  If left empty no custom certificate will be used.
+  The trailing slash is important!
 - cookiestring: The cookiestring which will be set by the login function
-  after logging in to caosdb.
+  after logging in to caosdb. This will usually be automatically set by login.
 - verbose: When set to `true` the underlying curl library will respond more
   verbosively. Can be used for debugging.
-- usec: When set to true the c++ library will be used instead of the julia module HTTP
 """
 @with_kw mutable struct Connection
     baseurl::Union{Missing,String}
-    cacert::Union{Missing,String}
-    cookiestring::Union{Missing,String}
-    verbose::Bool
-    usec::Bool
+    cookiestring::Union{Missing,String} = missing
+    verbose::Bool = false
 end
 
 global ID_COUNTER = 0
@@ -41,6 +37,9 @@ function next_id()
     return ID_COUNTER
 end
 
+"""
+   Base type for all CaosDB entities.
+"""
 @with_kw mutable struct Entity
     role::String
     id::Union{Missing,Int64} = next_id()
@@ -90,6 +89,17 @@ macro addnonmissingattribute(node, entity, entfield)
             $(n)[$(entfield)] = $(t).$(s)
         end
     end
+end
+
+"""
+   helper function to convert boolean verbose flag of connection
+into numeric verbosity for http library.
+"""
+function http_verbose(connection::Connection)
+    if connection.verbose
+        return 2
+    end
+    return 0
 end
 
 
@@ -248,29 +258,17 @@ end
 # why is this not working: joinpath(@__DIR__, "libcaoslib")
 
 function login(username, password, connection::Connection)
-    
-    verbose = 0
-    if connection.verbose
-        verbose = 2
-    end
-    
     request("POST", connection.baseurl * "login", [],
             "username="*username*"&password="*password;
-            verbose=verbose,
+            verbose=http_verbose(connection),
             #                require_ssl_verification=false,
             cookies=Dict{String,String}("type" => "ok"))
     
 end
 
 function _get(url, connection::Connection)
-    
-    verbose = 0
-    if connection.verbose
-        verbose = 2
-    end
-    
     resp = request("GET", connection.baseurl * url;
-                   verbose=verbose,
+                   verbose=http_verbose(connection),
                    cookies=Dict{String,String}("type" => "ok"))
     # error checking (HTTP error code) missing
     return String(resp.body)
@@ -278,14 +276,8 @@ function _get(url, connection::Connection)
 end
 
 function _delete(url, connection::Connection)
-    
-    verbose = 0
-    if connection.verbose
-        verbose = 2
-    end
-    
     resp = request("DELETE", connection.baseurl * url;
-                   verbose=verbose,
+                   verbose=http_verbose(connection),
                    cookies=Dict{String,String}("type" => "ok"))
     # error checking (HTTP error code) missing
     return String(resp.body)
@@ -293,13 +285,8 @@ function _delete(url, connection::Connection)
 end
 
 function put(url, body, connection::Connection)
-    verbose = 0
-    if connection.verbose
-        verbose = 2
-    end
-    
     resp = request("PUT", connection.baseurl * url, [], body;
-                   verbose=verbose,
+                   verbose=http_verbose(connection),
                    cookies=Dict{String,String}("type" => "ok"))
     # error checking (HTTP error code) missing
     return String(resp.body)
@@ -307,20 +294,11 @@ function put(url, body, connection::Connection)
 end
 
 function post(url, body, connection::Connection)
-    # println("---- SEND ----")
-    # println(parsexml(body))
-    # println("---- RECV ----")
-    
-    verbose = 0
-    if connection.verbose
-        verbose = 2
-    end
-    
     resp = request("POST", connection.baseurl * url, [], body;
-                   verbose=verbose,
+                   verbose=http_verbose(connection),
                    cookies=Dict{String,String}("type" => "ok"))
     # error checking (HTTP error code) missing
-    println(parsexml(String(resp.body)))
+    # println(parsexml(String(resp.body)))
     return String(resp.body)
 end
 
